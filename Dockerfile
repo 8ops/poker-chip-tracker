@@ -1,6 +1,7 @@
 # Stage 1: build React frontend
 FROM node:22-alpine AS frontend
 WORKDIR /frontend
+RUN npm config set registry https://registry.npmmirror.com
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend/ .
@@ -9,8 +10,9 @@ RUN npm run build
 # Stage 2: build Go binary
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
-COPY go.mod go.sum ./
 ENV GOPROXY=https://goproxy.cn,direct
+ENV GO111MODULE=on
+COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /frontend/dist ./web

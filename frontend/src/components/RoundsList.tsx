@@ -15,12 +15,12 @@ export default function RoundsList({ rounds }: Props) {
           <div className="round-title">第 {round.roundNo} 局</div>
           <table>
             <tbody>
-              {round.records.length === 0 ? (
+              {(round.records ?? []).length === 0 ? (
                 <tr>
                   <td colSpan={2}>无变化</td>
                 </tr>
               ) : (
-                round.records.map((rec) => {
+                (round.records ?? []).map((rec) => {
                   const cls = rec.changeAmount > 0 ? 'positive' : 'negative'
                   const sign = rec.changeAmount > 0 ? '+' : ''
                   return (

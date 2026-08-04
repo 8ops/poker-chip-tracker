@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 	"strings"
 	"time"
 
@@ -207,7 +208,7 @@ func (s *Store) ListPlayers(roomID string) ([]models.Player, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var players []models.Player
+	var players = make([]models.Player, 0)
 	for rows.Next() {
 		var p models.Player
 		if err := rows.Scan(&p.ID, &p.RoomID, &p.Name, &p.InitialChip, &p.CurrentChip); err != nil {
@@ -284,7 +285,7 @@ func (s *Store) SubmitRecords(roundID string, inputs []models.RecordInput) (*mod
 		return nil, err
 	}
 
-	var records []models.ChipRecord
+	records := make([]models.ChipRecord, 0)
 	for _, in := range inputs {
 		if in.ChangeAmount == 0 {
 			continue
@@ -381,7 +382,7 @@ func (s *Store) listRecords(roundID string) ([]models.ChipRecord, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var records []models.ChipRecord
+	records := make([]models.ChipRecord, 0)
 	for rows.Next() {
 		var r models.ChipRecord
 		if err := rows.Scan(&r.ID, &r.RoundID, &r.PlayerID, &r.PlayerName, &r.ChangeAmount); err != nil {
@@ -413,23 +414,14 @@ func (s *Store) GetStats(code string) (*models.Stats, error) {
 }
 
 func rankStats(stats []models.PlayerStat) {
-	type indexed struct {
-		idx   int
-		change int
-	}
-	var items []indexed
-	for i, s := range stats {
-		items = append(items, indexed{i, s.TotalChange})
-	}
-	for i := 0; i < len(items); i++ {
-		for j := i + 1; j < len(items); j++ {
-			if items[j].change > items[i].change {
-				items[i], items[j] = items[j], items[i]
-			}
+	sort.SliceStable(stats, func(i, j int) bool {
+		if stats[i].TotalChange != stats[j].TotalChange {
+			return stats[i].TotalChange > stats[j].TotalChange
 		}
-	}
-	for rank, item := range items {
-		stats[item.idx].Rank = rank + 1
+		return stats[i].Name < stats[j].Name
+	})
+	for i := range stats {
+		stats[i].Rank = i + 1
 	}
 }
 

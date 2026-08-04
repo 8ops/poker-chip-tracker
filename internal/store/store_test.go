@@ -248,6 +248,24 @@ func TestGetStatsRanking(t *testing.T) {
 	}
 }
 
+func TestEmptyRoundRecordsNotNull(t *testing.T) {
+	s := tempStore(t)
+	room, _ := s.CreateRoom("empty")
+	_, _ = s.AddPlayer(room.RoomCode, "Alice", 1000)
+	_, _ = s.CreateRound(room.RoomCode)
+
+	detail, err := s.GetRoomDetail(room.RoomCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Rounds) != 1 {
+		t.Fatalf("rounds = %d", len(detail.Rounds))
+	}
+	if detail.Rounds[0].Records == nil {
+		t.Fatal("records should be empty slice, not nil")
+	}
+}
+
 func TestGetRoomDetail(t *testing.T) {
 	s := tempStore(t)
 	room, _ := s.CreateRoom("detail")

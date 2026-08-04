@@ -22,7 +22,7 @@ export default function RoomPage({ toast }: Props) {
   const [playerName, setPlayerName] = useState('')
   const [initialChip, setInitialChip] = useState(1000)
   const [roundId, setRoundId] = useState<string | null>(null)
-  const [changes, setChanges] = useState<Record<string, number>>({})
+  const [changes, setChanges] = useState<Record<string, string>>({})
 
   const load = useCallback(async () => {
     try {
@@ -36,13 +36,22 @@ export default function RoomPage({ toast }: Props) {
     }
   }, [roomCode, navigate, toast])
 
+  const refresh = useCallback(async () => {
+    try {
+      const data = await api<RoomDetail>('GET', `/api/rooms/${roomCode}`)
+      setDetail(data)
+    } catch {
+      /* 后台刷新失败时保留当前页面 */
+    }
+  }, [roomCode])
+
   useEffect(() => {
     setLoading(true)
     void load()
   }, [load])
 
   useRoomSocket(roomCode, () => {
-    void load()
+    void refresh()
   })
 
   const readOnly = detail?.room.status === 'CLOSED'
@@ -50,7 +59,11 @@ export default function RoomPage({ toast }: Props) {
   const rounds = detail?.rounds ?? []
 
   const sum = useMemo(
-    () => Object.values(changes).reduce((a, b) => a + (Number(b) || 0), 0),
+    () =>
+      Object.values(changes).reduce((total, raw) => {
+        const n = raw === '' || raw === '-' ? 0 : parseInt(raw, 10)
+        return total + (Number.isNaN(n) ? 0 : n)
+      }, 0),
     [changes],
   )
 
@@ -60,9 +73,9 @@ export default function RoomPage({ toast }: Props) {
     try {
       const round = await api<GameRound>('POST', `/api/rooms/${roomCode}/rounds`)
       setRoundId(round.id)
-      const init: Record<string, number> = {}
+      const init: Record<string, string> = {}
       players.forEach((p) => {
-        init[p.id] = 0
+        init[p.id] = '0'
       })
       setChanges(init)
     } catch (e) {
@@ -73,7 +86,10 @@ export default function RoomPage({ toast }: Props) {
   const submitRound = async () => {
     if (!roundId) return
     const records = Object.entries(changes)
-      .map(([playerId, changeAmount]) => ({ playerId, changeAmount: Number(changeAmount) || 0 }))
+      .map(([playerId, raw]) => {
+        const n = raw === '' || raw === '-' ? 0 : parseInt(raw, 10)
+        return { playerId, changeAmount: Number.isNaN(n) ? 0 : n }
+      })
       .filter((r) => r.changeAmount !== 0)
     try {
       await api('POST', `/api/rounds/${roundId}/records`, { records })
@@ -172,11 +188,11 @@ export default function RoomPage({ toast }: Props) {
                   <label>{p.name}</label>
                   <input
                     type="number"
-                    value={changes[p.id] ?? 0}
+                    value={changes[p.id] ?? '0'}
                     onChange={(e) =>
                       setChanges((prev) => ({
                         ...prev,
-                        [p.id]: parseInt(e.target.value, 10) || 0,
+                        [p.id]: e.target.value,
                       }))
                     }
                   />
